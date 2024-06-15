@@ -6,7 +6,7 @@
 
 namespace MapInit {
 
-void initializeMap(int level, int width, int height, std::vector<std::vector<int>>& map, std::pair<int, int>& portal1, std::pair<int, int>& portal2) {
+void initMap(int level, int width, int height, std::vector<std::vector<int>>& map, std::pair<int, int>& portal1, std::pair<int, int>& portal2) {
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             map[y][x] = 0; // 초기화
@@ -25,7 +25,7 @@ void initializeMap(int level, int width, int height, std::vector<std::vector<int
         map[0][0] = map[0][width - 1] = map[height - 1][0] = map[height - 1][width - 1] = 1;
 
         // 초기 문 위치 설정
-        placeRandomGates(width, height, map, portal1, portal2);
+        randomGates(width, height, map, portal1, portal2);
     }
 
     // 2단계 맵
@@ -39,10 +39,9 @@ void initializeMap(int level, int width, int height, std::vector<std::vector<int
         }
         map[0][0] = map[0][width - 1] = map[height - 1][0] = map[height - 1][width - 1] = 1;
         for (int y = height / 2 - 4; y <= height / 2 + 4; ++y) {
-            map[y][width / 2] = 2; // 중앙 벽 길이를 9칸으로 확장
+            map[y][width / 2] = 2;
         }
-        // 게이트 초기화
-        placeRandomGates(width, height, map, portal1, portal2);
+        randomGates(width, height, map, portal1, portal2);
     }
 
     // 3단계 맵
@@ -56,15 +55,13 @@ void initializeMap(int level, int width, int height, std::vector<std::vector<int
         }
         map[0][0] = map[0][width - 1] = map[height - 1][0] = map[height - 1][width - 1] = 1;
 
-        // 고정된 벽 위치 설정
         map[6][6] = 2;
         map[6][15] = 2;
         for (int y = 8; y <= 13; ++y) {
             map[15][y] = 2;
         }
 
-        // 게이트 초기화
-        placeRandomGates(width, height, map, portal1, portal2);
+        randomGates(width, height, map, portal1, portal2);
     }
 
     // 4단계 맵
@@ -78,13 +75,15 @@ void initializeMap(int level, int width, int height, std::vector<std::vector<int
         }
         map[0][0] = map[0][width - 1] = map[height - 1][0] = map[height - 1][width - 1] = 1;
 
-        // 중앙에 긴 세로 벽 설정
-        for (int y = 2; y <= 18; ++y) {
-            map[y][10] = 2;
+        for (int y = 2; y <= 19; ++y) {
+            map[y][11] = 2;
         }
 
+        map[10][5] = 2;
+        map[10][16] = 2;
+
         // 게이트 초기화
-        placeRandomGates(width, height, map, portal1, portal2);
+        randomGates(width, height, map, portal1, portal2);
     }
 }
 

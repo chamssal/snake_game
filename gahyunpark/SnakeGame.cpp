@@ -7,7 +7,7 @@
 #include <ncurses.h>
 
 SnakeGame::SnakeGame(int width, int height, int level)
-    : width(width), height(height), level(level), direction(-1), lastGateChangeTime(0), maxSnakeLength(13), growthItemCount(0), poisonItemCount(0), portalCount(0), scoreBoard(width), itemExists(false), itemLastAppeared(0), reverseControlItemExists(false), reverseControlItemLastAppeared(0), reverseControlActive(false), reverseControlActivatedAt(0), appleLastAppeared(0) {
+    : width(width), height(height), level(level), direction(-1), lastGateChangeTime(0), maxlength(13), growthItemCount(0), poisonItemCount(0), gateCount(0), scoreBoard(width), isPoison(false), poisonLastAppeared(0), reverseControlItemExists(false), reverseControlItemLastAppeared(0), reverseControlActive(false), reverseControlActivatedAt(0), growthLastAppeared(0) {
     initscr();
     cbreak();
     noecho();
@@ -17,22 +17,22 @@ SnakeGame::SnakeGame(int width, int height, int level)
 
     if (has_colors()) {
         start_color();
-        init_pair(1, COLOR_WHITE, COLOR_BLACK); // 기본 색상 쌍 (흰색 문자, 검은 배경)
-        init_pair(2, COLOR_BLUE, COLOR_BLACK);  // 게이트 색상 쌍 (파란 문자, 검은 배경)
-        init_pair(3, COLOR_RED, COLOR_BLACK);   // 사과 색상 쌍 (빨간 문자, 검은 배경)
-        init_pair(4, COLOR_GREEN, COLOR_BLACK); // 초기화 아이템 색상 쌍 (초록 문자, 검은 배경)
-        init_pair(5, COLOR_YELLOW, COLOR_BLACK); // 방향 바꾸기 아이템 색상 쌍 (노란 문자, 검은 배경)
+        init_pair(1, COLOR_WHITE, COLOR_BLACK); //벽 색
+        init_pair(2, COLOR_BLUE, COLOR_BLACK);  // 게이트 파란색
+        init_pair(3, COLOR_RED, COLOR_BLACK);   // 길이 늘어가는거 빨간색
+        init_pair(4, COLOR_GREEN, COLOR_BLACK); // 줄어드는거 초록색
+        init_pair(5, COLOR_YELLOW, COLOR_BLACK); // 반대방향 노란색
     }
 
     map.resize(height, std::vector<int>(width, 0));
-    MapInit::initializeMap(level, width, height, map, portal1, portal2);
+    MapInit::initMap(level, width, height, map, gate1, gate2);
     initializeSnake();
-    placeApple(); // 초기 사과 위치 설정
-    srand(time(0)); // 랜덤 시드 초기화
+    placeGrowth(); //증가 아이템 위치
+    srand(time(0)); // 랜덤 시간
     lastGateChangeTime = time(NULL);
-    itemLastAppeared = time(NULL);
+    poisonLastAppeared = time(NULL);
     reverseControlItemLastAppeared = time(NULL);
-    appleLastAppeared = time(NULL);
+    growthLastAppeared = time(NULL);
 }
 
 SnakeGame::~SnakeGame() {
@@ -44,8 +44,8 @@ void SnakeGame::run() {
         clear();
         drawMap();
         drawSnake();
-        drawApple();
-        drawItem();
+        drawGrowth();
+        drawPoison();
         drawReverseControlItem();
         scoreBoard.draw();
         refresh();
@@ -69,29 +69,37 @@ void SnakeGame::run() {
             continue;
         }
 
-        // 20초마다 게이트 위치 변경
+        if (checkClearCondition()) {
+            mvprintw(height / 2, (width - 10) / 2, "Stage Clear!");
+            refresh();
+            sleep(2);
+            nextLevel();
+            continue;
+        }
+
+        // 게이트 20초
         if (difftime(time(NULL), lastGateChangeTime) >= 20) {
             changeGatePosition();
             lastGateChangeTime = time(NULL);
         }
 
-        // 5초마다 사과 위치 변경
-        if (difftime(time(NULL), appleLastAppeared) >= 5) {
-            placeApple();
-            appleLastAppeared = time(NULL);
+        // 증가 아이템 5초
+        if (difftime(time(NULL), growthLastAppeared) >= 5) {
+            placeGrowth();
+            growthLastAppeared = time(NULL);
         }
 
-        // 초기화 아이템 상태 변경
-        if (itemExists && difftime(time(NULL), itemLastAppeared) >= 5) {
-            itemExists = false;
-            itemLastAppeared = time(NULL);
-        } else if (!itemExists && difftime(time(NULL), itemLastAppeared) >= 10) {
-            itemExists = true;
-            placeItem();
-            itemLastAppeared = time(NULL);
+        // 감소 아이템 5초 생김, 10초 안생김
+        if (isPoison && difftime(time(NULL), poisonLastAppeared) >= 5) {
+            isPoison = false;
+            poisonLastAppeared = time(NULL);
+        } else if (!isPoison && difftime(time(NULL), poisonLastAppeared) >= 10) {
+            isPoison = true;
+            placePoison();
+            poisonLastAppeared = time(NULL);
         }
 
-        // 방향 바꾸기 아이템 상태 변경
+        // 반대방향 5초 생김 15초 안생김
         if (reverseControlItemExists && difftime(time(NULL), reverseControlItemLastAppeared) >= 5) {
             reverseControlItemExists = false;
             reverseControlItemLastAppeared = time(NULL);
@@ -101,18 +109,18 @@ void SnakeGame::run() {
             reverseControlItemLastAppeared = time(NULL);
         }
 
-        // 방향 바꾸기 효과 상태 변경
+        // 반대방향 효과
         if (reverseControlActive && difftime(time(NULL), reverseControlActivatedAt) >= 5) {
             reverseControlActive = false;
         }
 
-        usleep(100000);
+        usleep(100000);//0.1 간격으로 뱀 움직임
     }
 }
 
 void SnakeGame::initializeSnake() {
     snake.clear();
-    snake.push_back({1, 3}); // Head
+    snake.push_back({1, 3}); // 머리
     snake.push_back({1, 2});
     snake.push_back({1, 1});
 }
@@ -131,7 +139,7 @@ void SnakeGame::drawMap() {
                 attroff(COLOR_PAIR(1));
             } else if (map[y][x] == 3) {
                 attron(COLOR_PAIR(2));
-                mvprintw(y, displayX, "P"); // 문 표시
+                mvprintw(y, displayX, "G"); // 문 표시
                 attroff(COLOR_PAIR(2));
             }
         }
@@ -143,23 +151,23 @@ void SnakeGame::drawSnake() {
         int y = snake[i].first;
         int x = 2 * snake[i].second; // x 좌표를 두 배로 해서 비율 맞춤
         if (i == 0) {
-            mvprintw(y, x, "O");  // Head
+            mvprintw(y, x, "O");
         } else {
-            mvprintw(y, x, "o");  // Body
+            mvprintw(y, x, "o");
         }
     }
 }
 
-void SnakeGame::drawApple() {
+void SnakeGame::drawGrowth() {
     attron(COLOR_PAIR(3));
-    mvprintw(apple.first, 2 * apple.second, "A");
+    mvprintw(growthItem.first, 2 * growthItem.second, "G");
     attroff(COLOR_PAIR(3));
 }
 
-void SnakeGame::drawItem() {
-    if (itemExists) {
+void SnakeGame::drawPoison() {
+    if (isPoison) {
         attron(COLOR_PAIR(4));
-        mvprintw(item.first, 2 * item.second, "I");
+        mvprintw(poisonItem.first, 2 * poisonItem.second, "P");
         attroff(COLOR_PAIR(4));
     }
 }
@@ -228,12 +236,12 @@ void SnakeGame::moveSnake() {
     }
 
     // 텔레포트 후에도 안전한지 검증
-    if (newHead == portal1) {
-        teleport(newHead, portal2);
-        portalCount++; // 포탈 통과 카운트 증가
-    } else if (newHead == portal2) {
-        teleport(newHead, portal1);
-        portalCount++; // 포탈 통과 카운트 증가
+    if (newHead == gate1) {
+        teleport(newHead, gate2);
+        gateCount++; 
+    } else if (newHead == gate2) {
+        teleport(newHead, gate1);
+        gateCount++; 
     }
 
     // 텔레포트 후에 다시 위치 검증
@@ -245,45 +253,45 @@ void SnakeGame::moveSnake() {
         return;
     }
 
-    // 사과를 먹었을 때
-    if (newHead == apple) {
-        if (snake.size() < maxSnakeLength) {
-            snake.insert(snake.begin(), newHead); // 몸 길이 1 증가
+    // 증가 아이템 먹었을 때 몸길이 증가
+    if (newHead == growthItem) {
+        if (snake.size() < maxlength) {
+            snake.insert(snake.begin(), newHead); 
         }
-        placeApple(); // 새로운 사과 위치 설정
-        growthItemCount++; // 먹은 사과의 수 증가
-        appleLastAppeared = time(NULL); // 사과가 등장한 시간을 갱신
-        scoreBoard.update(growthItemCount, snake.size(), poisonItemCount, portalCount);
-    } else if (itemExists && newHead == item) {
+        placeGrowth(); // 증가 아이템 위치
+        growthItemCount++;
+        growthLastAppeared = time(NULL); 
+        scoreBoard.update(growthItemCount, snake.size(), poisonItemCount, gateCount);
+    } else if (isPoison && newHead == poisonItem) {
         if (snake.size() > 3) {
-            snake.pop_back(); // 몸 길이 1 감소
-            drawSnake(); // 현재 뱀의 길이를 출력
+            snake.pop_back(); 
+            drawSnake(); 
             refresh();
         } else {
-            snake.pop_back(); // 길이가 2로 줄어들게 함
-            drawSnake(); // 현재 뱀의 길이를 출력
+            snake.pop_back(); 
+            drawSnake(); 
             refresh();
-            scoreBoard.update(growthItemCount, snake.size(), poisonItemCount, portalCount);
+            scoreBoard.update(growthItemCount, snake.size(), poisonItemCount, gateCount);
             mvprintw(height / 2, (width - 10) / 2, "Game Over");
             refresh();
             sleep(3);
             resetGame();
             return;
         }
-        itemExists = false; // 아이템 제거
-        itemLastAppeared = time(NULL); // 아이템이 사라진 시간을 설정
-        poisonItemCount++; // 초기화 아이템 카운트 증가
+        isPoison = false; // 감소아이템 제거
+        poisonLastAppeared = time(NULL); // 감소 아이템이 사라진 시간을 설정
+        poisonItemCount++; 
     } else if (reverseControlItemExists && newHead == reverseControlItem) {
-        reverseControlActive = true; // 방향 바꾸기 활성화
-        reverseControlActivatedAt = time(NULL); // 방향 바꾸기가 활성화된 시간을 설정
+        reverseControlActive = true; // 방향 바꾸기
+        reverseControlActivatedAt = time(NULL); // 방향 바꾸기 시작시간
         reverseControlItemExists = false; // 아이템 제거
-        reverseControlItemLastAppeared = time(NULL); // 아이템이 사라진 시간을 설정
+        reverseControlItemLastAppeared = time(NULL); // 감소 아이템 사라진 시간
     } else {
-        snake.pop_back(); // 몸 길이 증가하지 않으면 마지막 부분 제거
+        snake.pop_back(); // 몸길이 13 도달했을 때
         snake.insert(snake.begin(), newHead);
     }
 
-    scoreBoard.update(growthItemCount, snake.size(), poisonItemCount, portalCount);
+    scoreBoard.update(growthItemCount, snake.size(), poisonItemCount, gateCount);
 }
 
 void SnakeGame::teleport(std::pair<int, int>& head, const std::pair<int, int>& target) {
@@ -293,7 +301,7 @@ void SnakeGame::teleport(std::pair<int, int>& head, const std::pair<int, int>& t
     head = target; // 새로운 위치로 이동
 
     // 1. 나오는 포탈이 21*21 맵의 가장자리에 위치한 포탈이라면 방향과 상관없이 사각형 안쪽 방향, 벽과 수직으로 나오게 한다.
-    if (isEdgePortal(head)) {
+    if (isEdgeGate(head)) {
         if (head.first == 0) {
             direction = 2; head.first++;
         } else if (head.first == height - 1) {
@@ -326,7 +334,7 @@ void SnakeGame::teleport(std::pair<int, int>& head, const std::pair<int, int>& t
     }
 }
 
-bool SnakeGame::isEdgePortal(const std::pair<int, int>& pos) {
+bool SnakeGame::isEdgeGate(const std::pair<int, int>& pos) {
     return pos.first == 0 || pos.first == height - 1 || pos.second == 0 || pos.second == width - 1;
 }
 
@@ -335,7 +343,6 @@ bool SnakeGame::checkCollision() {
     if (map[head.first][head.second] == 2 || map[head.first][head.second] == 1) {
         return true;
     }
-    // 뱀이 자기 몸과 충돌하는지 체크
     for (size_t i = 1; i < snake.size(); ++i) {
         if (snake[i] == head) return true;
     }
@@ -343,43 +350,43 @@ bool SnakeGame::checkCollision() {
 }
 
 void SnakeGame::resetGame() {
-    // 키 입력 버퍼 비우기
+    //버퍼 비우기
     flushinp();
 
     direction = -1;
     initializeSnake();
     clear();
-    MapInit::initializeMap(level, width, height, map, portal1, portal2);
-    placeApple(); // 새로운 사과 위치 설정
-    growthItemCount = 0; // 사과 카운트 초기화
-    poisonItemCount = 0; // 초기화 아이템 카운트 초기화
-    portalCount = 0; // 포탈 통과 카운트 초기화
-    scoreBoard.reset(); // 점수판 초기화
+    MapInit::initMap(level, width, height, map, gate1, gate2);
+    placeGrowth();
+    growthItemCount = 0;
+    poisonItemCount = 0;
+    gateCount = 0;
+    scoreBoard.reset();
     drawMap();
     drawSnake();
-    drawApple();
+    drawGrowth();
     scoreBoard.draw();
     refresh();
 }
 
-void SnakeGame::placeApple() {
+void SnakeGame::placeGrowth() {
     int x, y;
     do {
         x = rand() % width;
         y = rand() % height;
-    } while (map[y][x] != 0 || isSnakePosition(y, x)); // 벽이나 뱀의 몸체와 겹치지 않는 위치 선택
+    } while (map[y][x] != 0 || isSnakePosition(y, x)); //아무것도 없는 위치
 
-    apple = {y, x};
+    growthItem = {y, x};
 }
 
-void SnakeGame::placeItem() {
+void SnakeGame::placePoison() {
     int x, y;
     do {
         x = rand() % width;
         y = rand() % height;
-    } while (map[y][x] != 0 || isSnakePosition(y, x) || apple == std::make_pair(y, x)); // 벽, 뱀의 몸체, 사과와 겹치지 않는 위치 선택
+    } while (map[y][x] != 0 || isSnakePosition(y, x) || growthItem == std::make_pair(y, x)); 
 
-    item = {y, x};
+    poisonItem = {y, x};
 }
 
 void SnakeGame::placeReverseControlItem() {
@@ -387,7 +394,7 @@ void SnakeGame::placeReverseControlItem() {
     do {
         x = rand() % width;
         y = rand() % height;
-    } while (map[y][x] != 0 || isSnakePosition(y, x) || apple == std::make_pair(y, x)); // 벽, 뱀의 몸체, 사과와 겹치지 않는 위치 선택
+    } while (map[y][x] != 0 || isSnakePosition(y, x) || growthItem == std::make_pair(y, x));
 
     reverseControlItem = {y, x};
 }
@@ -402,5 +409,32 @@ bool SnakeGame::isSnakePosition(int y, int x) {
 }
 
 void SnakeGame::changeGatePosition() {
-    MapInit::placeRandomGates(width, height, map, portal1, portal2);
+    MapInit::randomGates(width, height, map, gate1, gate2);
+}
+
+bool SnakeGame::checkClearCondition() {
+    return (snake.size() >= 13 && growthItemCount >= 8 && poisonItemCount >= 3 && gateCount >= 5);
+}
+
+void SnakeGame::nextLevel() {
+    level++;
+    if (level > 4) level = 1;
+    resetGame();
+    clear();
+    mvprintw(height / 2, (width - 10) / 2, "Next Level: %d", level);
+    refresh();
+    sleep(2);
+    clear();
+    MapInit::initMap(level, width, height, map, gate1, gate2);
+    initializeSnake();
+    placeGrowth();
+    growthItemCount = 0;
+    poisonItemCount = 0;
+    gateCount = 0;
+    scoreBoard.reset();
+    drawMap();
+    drawSnake();
+    drawGrowth();
+    scoreBoard.draw();
+    refresh();
 }

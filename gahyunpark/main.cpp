@@ -3,11 +3,14 @@
 #include <cstdio>
 
 int main() {
-    int level;
-    printf("Choose a level (1, 2, 3, 4): ");
-    scanf("%d", &level);
+    initscr();
+    cbreak();
+    noecho();
+    curs_set(FALSE);
 
-    SnakeGame game(21, 21, level);
+    SnakeGame game(22, 22, 1);
     game.run();
+
+    endwin();
     return 0;
 }

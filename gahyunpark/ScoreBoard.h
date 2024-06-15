@@ -11,7 +11,7 @@ public:
     void update(int growthItemCount, int snakeLength, int poisonItemCount, int portalCount);
     void reset();
     void draw() const;
-    void startPlayTime(); // 플레이타임 시작 함수
+    void startPlayTime();
 
 private:
     int width;
@@ -23,4 +23,4 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> startTime;
 };
 
-#endif // SCOREBOARD_H
+#endif
