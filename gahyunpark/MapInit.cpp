@@ -2,8 +2,11 @@
 #include <cstdlib>
 #include <ctime>
 #include <vector>
+#include <utility>
 
-void initializeMap(int level, int width, int height, std::vector<std::vector<int>>& map) {
+namespace MapInit {
+
+void initializeMap(int level, int width, int height, std::vector<std::vector<int>>& map, std::pair<int, int>& portal1, std::pair<int, int>& portal2) {
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             map[y][x] = 0; // 초기화
@@ -22,7 +25,6 @@ void initializeMap(int level, int width, int height, std::vector<std::vector<int
         map[0][0] = map[0][width - 1] = map[height - 1][0] = map[height - 1][width - 1] = 1;
 
         // 초기 문 위치 설정
-        std::pair<int, int> portal1, portal2;
         placeRandomGates(width, height, map, portal1, portal2);
     }
 
@@ -40,7 +42,6 @@ void initializeMap(int level, int width, int height, std::vector<std::vector<int
             map[y][width / 2] = 2; // 중앙 벽 길이를 9칸으로 확장
         }
         // 게이트 초기화
-        std::pair<int, int> portal1, portal2;
         placeRandomGates(width, height, map, portal1, portal2);
     }
 
@@ -63,7 +64,26 @@ void initializeMap(int level, int width, int height, std::vector<std::vector<int
         }
 
         // 게이트 초기화
-        std::pair<int, int> portal1, portal2;
+        placeRandomGates(width, height, map, portal1, portal2);
+    }
+
+    // 4단계 맵
+    if (level == 4) {
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                if (x == 0 || x == width - 1 || y == 0 || y == height - 1) {
+                    map[y][x] = 2;
+                }
+            }
+        }
+        map[0][0] = map[0][width - 1] = map[height - 1][0] = map[height - 1][width - 1] = 1;
+
+        // 중앙에 긴 세로 벽 설정
+        for (int y = 2; y <= 18; ++y) {
+            map[y][10] = 2;
+        }
+
+        // 게이트 초기화
         placeRandomGates(width, height, map, portal1, portal2);
     }
 }
@@ -99,3 +119,5 @@ void placeRandomGates(int width, int height, std::vector<std::vector<int>>& map,
     map[portal1.first][portal1.second] = 3;
     map[portal2.first][portal2.second] = 3;
 }
+
+} // namespace MapInit

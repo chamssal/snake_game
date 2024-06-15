@@ -25,7 +25,7 @@ SnakeGame::SnakeGame(int width, int height, int level)
     }
 
     map.resize(height, std::vector<int>(width, 0));
-    initializeMap(level, width, height, map);
+    MapInit::initializeMap(level, width, height, map, portal1, portal2);
     initializeSnake();
     placeApple(); // 초기 사과 위치 설정
     srand(time(0)); // 랜덤 시드 초기화
@@ -349,7 +349,7 @@ void SnakeGame::resetGame() {
     direction = -1;
     initializeSnake();
     clear();
-    initializeMap(level, width, height, map);
+    MapInit::initializeMap(level, width, height, map, portal1, portal2);
     placeApple(); // 새로운 사과 위치 설정
     growthItemCount = 0; // 사과 카운트 초기화
     poisonItemCount = 0; // 초기화 아이템 카운트 초기화
@@ -401,10 +401,6 @@ bool SnakeGame::isSnakePosition(int y, int x) {
     return false;
 }
 
-void SnakeGame::placeRandomGates() {
-    ::placeRandomGates(width, height, map, portal1, portal2);
-}
-
 void SnakeGame::changeGatePosition() {
-    placeRandomGates();
+    MapInit::placeRandomGates(width, height, map, portal1, portal2);
 }

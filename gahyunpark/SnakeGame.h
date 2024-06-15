@@ -6,6 +6,7 @@
 #include <utility>
 #include <ctime>
 #include "ScoreBoard.h"
+#include "MapInit.h"
 
 class SnakeGame {
 public:
@@ -37,7 +38,6 @@ private:
     time_t reverseControlActivatedAt; // 방향 바꾸기 활성화 시간
     ScoreBoard scoreBoard; // 점수판
 
-    void initializeMap();
     void initializeSnake();
     void drawMap();
     void drawSnake();
@@ -54,7 +54,6 @@ private:
     void placeItem();
     void placeReverseControlItem();
     bool isSnakePosition(int y, int x);
-    void placeRandomGates();
     void changeGatePosition();
 };
 
