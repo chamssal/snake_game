@@ -10,7 +10,7 @@ using namespace std;
 class SnakeGame {
 public:
     SnakeGame(int width, int height, int level)
-        : width(width), height(height), level(level), direction(-1), lastGateChangeTime(0), maxSnakeLength(10), appleCount(0), scoreBoard(width), itemExists(false), itemLastAppeared(0) {
+        : width(width), height(height), level(level), direction(-1), lastGateChangeTime(0), maxSnakeLength(10), appleCount(0), scoreBoard(width), itemExists(false), itemLastAppeared(0), reverseControlItemExists(false), reverseControlItemLastAppeared(0), reverseControlActive(false), reverseControlActivatedAt(0) {
         initscr();
         cbreak();
         noecho();
@@ -23,7 +23,8 @@ public:
             init_pair(1, COLOR_WHITE, COLOR_BLACK); // 기본 색상 쌍 (흰색 문자, 검은 배경)
             init_pair(2, COLOR_BLUE, COLOR_BLACK);  // 게이트 색상 쌍 (파란 문자, 검은 배경)
             init_pair(3, COLOR_RED, COLOR_BLACK);   // 사과 색상 쌍 (빨간 문자, 검은 배경)
-            init_pair(4, COLOR_GREEN, COLOR_BLACK); // 아이템 색상 쌍 (초록 문자, 검은 배경)
+            init_pair(4, COLOR_GREEN, COLOR_BLACK); // 초기화 아이템 색상 쌍 (초록 문자, 검은 배경)
+            init_pair(5, COLOR_YELLOW, COLOR_BLACK); // 방향 바꾸기 아이템 색상 쌍 (노란 문자, 검은 배경)
         }
 
         map.resize(height, vector<int>(width, 0));
@@ -33,6 +34,7 @@ public:
         srand(time(0)); // 랜덤 시드 초기화
         lastGateChangeTime = time(NULL);
         itemLastAppeared = time(NULL);
+        reverseControlItemLastAppeared = time(NULL);
     }
 
     ~SnakeGame() {
@@ -46,6 +48,7 @@ public:
             drawSnake();
             drawApple();
             drawItem();
+            drawReverseControlItem();
             scoreBoard.draw();
             refresh();
 
@@ -73,7 +76,7 @@ public:
                 lastGateChangeTime = time(NULL);
             }
 
-            // 아이템 상태 변경
+            // 초기화 아이템 상태 변경
             if (itemExists && difftime(time(NULL), itemLastAppeared) >= 5) {
                 itemExists = false;
                 itemLastAppeared = time(NULL);
@@ -81,6 +84,21 @@ public:
                 itemExists = true;
                 placeItem();
                 itemLastAppeared = time(NULL);
+            }
+
+            // 방향 바꾸기 아이템 상태 변경
+            if (reverseControlItemExists && difftime(time(NULL), reverseControlItemLastAppeared) >= 5) {
+                reverseControlItemExists = false;
+                reverseControlItemLastAppeared = time(NULL);
+            } else if (!reverseControlItemExists && difftime(time(NULL), reverseControlItemLastAppeared) >= 15) {
+                reverseControlItemExists = true;
+                placeReverseControlItem();
+                reverseControlItemLastAppeared = time(NULL);
+            }
+
+            // 방향 바꾸기 효과 상태 변경
+            if (reverseControlActive && difftime(time(NULL), reverseControlActivatedAt) >= 5) {
+                reverseControlActive = false;
             }
 
             usleep(100000);
@@ -98,9 +116,14 @@ private:
     pair<int, int> portal1, portal2; // 문 위치
     pair<int, int> apple; // 사과 위치
     pair<int, int> item; // 초기화 아이템 위치
-    bool itemExists; // 아이템 존재 여부
+    bool itemExists; // 초기화 아이템 존재 여부
     time_t lastGateChangeTime; // 마지막 게이트 위치 변경 시간
-    time_t itemLastAppeared; // 마지막 아이템 등장 시간
+    time_t itemLastAppeared; // 마지막 초기화 아이템 등장 시간
+    pair<int, int> reverseControlItem; // 방향 바꾸기 아이템 위치
+    bool reverseControlItemExists; // 방향 바꾸기 아이템 존재 여부
+    time_t reverseControlItemLastAppeared; // 마지막 방향 바꾸기 아이템 등장 시간
+    bool reverseControlActive; // 방향 바꾸기 활성화 여부
+    time_t reverseControlActivatedAt; // 방향 바꾸기 활성화 시간
     ScoreBoard scoreBoard; // 점수판
 
     void initializeMap() {
@@ -219,24 +242,53 @@ private:
         }
     }
 
+    void drawReverseControlItem() {
+        if (reverseControlItemExists) {
+            attron(COLOR_PAIR(5));
+            mvprintw(reverseControlItem.first, 2 * reverseControlItem.second, "R");
+            attroff(COLOR_PAIR(5));
+        }
+    }
+
     void changeDirection(int ch) {
-        switch (ch) {
-            case KEY_UP:
-            case 'w':
-                if (direction != 2) direction = 0;
-                break;
-            case KEY_RIGHT:
-            case 'd':
-                if (direction != 3) direction = 1;
-                break;
-            case KEY_DOWN:
-            case 's':
-                if (direction != 0) direction = 2;
-                break;
-            case KEY_LEFT:
-            case 'a':
-                if (direction != 1) direction = 3;
-                break;
+        if (reverseControlActive) {
+            switch (ch) {
+                case KEY_UP:
+                case 'w':
+                    if (direction != 2) direction = 2;
+                    break;
+                case KEY_RIGHT:
+                case 'd':
+                    if (direction != 3) direction = 3;
+                    break;
+                case KEY_DOWN:
+                case 's':
+                    if (direction != 0) direction = 0;
+                    break;
+                case KEY_LEFT:
+                case 'a':
+                    if (direction != 1) direction = 1;
+                    break;
+            }
+        } else {
+            switch (ch) {
+                case KEY_UP:
+                case 'w':
+                    if (direction != 2) direction = 0;
+                    break;
+                case KEY_RIGHT:
+                case 'd':
+                    if (direction != 3) direction = 1;
+                    break;
+                case KEY_DOWN:
+                case 's':
+                    if (direction != 0) direction = 2;
+                    break;
+                case KEY_LEFT:
+                case 'a':
+                    if (direction != 1) direction = 3;
+                    break;
+            }
         }
     }
 
@@ -249,28 +301,14 @@ private:
             case 3: newHead.second--; break; // Left
         }
 
-        // 사과를 먹었을 때
-        if (newHead == apple) {
-            if (snake.size() < maxSnakeLength) {
-                // 몸 길이 증가 - 사과를 먹었을 때 바로 증가
-                snake.insert(snake.begin(), newHead);
-            }
-            placeApple(); // 새로운 사과 위치 설정
-            appleCount++; // 먹은 사과의 수 증가
-            scoreBoard.update(appleCount, snake.size());
-        } else if (itemExists && newHead == item) {
-            while (snake.size() > 3) {
-                snake.pop_back(); // 몸 길이를 3으로 줄임
-            }
-            itemExists = false; // 아이템 제거
-            itemLastAppeared = time(NULL); // 아이템이 사라진 시간을 설정
-            snake.insert(snake.begin(), newHead);
-        } else {
-            snake.pop_back(); // 몸 길이 증가하지 않으면 마지막 부분 제거
-            snake.insert(snake.begin(), newHead);
+        // 텔레포트 후에도 안전한지 검증
+        if (newHead == portal1) {
+            teleport(newHead, portal2);
+        } else if (newHead == portal2) {
+            teleport(newHead, portal1);
         }
 
-        // 텔레포트 후에도 안전한지 검증
+        // 텔레포트 후에 다시 위치 검증
         if (map[newHead.first][newHead.second] == 2 || map[newHead.first][newHead.second] == 1) {
             mvprintw(height / 2, (width - 10) / 2, "Game Over");
             refresh();
@@ -279,11 +317,31 @@ private:
             return;
         }
 
-        // 문에 도달했을 때 텔레포트 구현
-        if (newHead == portal1) {
-            teleport(newHead, portal2);
-        } else if (newHead == portal2) {
-            teleport(newHead, portal1);
+        // 사과를 먹었을 때
+        if (newHead == apple) {
+            if (snake.size() < maxSnakeLength) {
+                snake.insert(snake.begin(), newHead); // 몸 길이 1 증가
+            }
+            placeApple(); // 새로운 사과 위치 설정
+            appleCount++; // 먹은 사과의 수 증가
+            scoreBoard.update(appleCount, snake.size());
+        } else if (itemExists && newHead == item) {
+            while (snake.size() > 3) {
+                snake.pop_back(); // 몸 길이를 3으로 줄임
+            }
+            while (snake.size() < 3) {
+                snake.push_back(snake.back()); // 몸 길이를 3으로 채움
+            }
+            itemExists = false; // 아이템 제거
+            itemLastAppeared = time(NULL); // 아이템이 사라진 시간을 설정
+        } else if (reverseControlItemExists && newHead == reverseControlItem) {
+            reverseControlActive = true; // 방향 바꾸기 활성화
+            reverseControlActivatedAt = time(NULL); // 방향 바꾸기가 활성화된 시간을 설정
+            reverseControlItemExists = false; // 아이템 제거
+            reverseControlItemLastAppeared = time(NULL); // 아이템이 사라진 시간을 설정
+        } else {
+            snake.pop_back(); // 몸 길이 증가하지 않으면 마지막 부분 제거
+            snake.insert(snake.begin(), newHead);
         }
 
         scoreBoard.update(appleCount, snake.size());
@@ -291,7 +349,6 @@ private:
 
     void teleport(pair<int, int>& head, const pair<int, int>& target) {
         // 이전 위치와 방향을 저장
-        pair<int, int> prevHead = head;
         int prevDirection = direction;
 
         head = target; // 새로운 위치로 이동
@@ -321,7 +378,7 @@ private:
                     if (map[head.first][head.second + 1] == 2 || map[head.first][head.second + 1] == 1) direction = 2; // Down
                     break;
                 case 2: // Down
-                    if (map[head.first + 1][head.second] == 2 || map[head.first + 1][head.second] == 1) direction = 3; // Left
+                    if (map[head.first + 1][head.second] == 2 || map[head.first + 1][head.second + 1] == 1) direction = 3; // Left
                     break;
                 case 3: // Left
                     if (map[head.first][head.second - 1] == 2 || map[head.first][head.second - 1] == 1) direction = 0; // Up
@@ -382,6 +439,16 @@ private:
         } while (map[y][x] != 0 || isSnakePosition(y, x) || apple == make_pair(y, x)); // 벽, 뱀의 몸체, 사과와 겹치지 않는 위치 선택
 
         item = {y, x};
+    }
+
+    void placeReverseControlItem() {
+        int x, y;
+        do {
+            x = rand() % width;
+            y = rand() % height;
+        } while (map[y][x] != 0 || isSnakePosition(y, x) || apple == make_pair(y, x)); // 벽, 뱀의 몸체, 사과와 겹치지 않는 위치 선택
+
+        reverseControlItem = {y, x};
     }
 
     bool isSnakePosition(int y, int x) {
