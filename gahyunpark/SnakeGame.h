@@ -57,6 +57,7 @@ private:
     void changeGatePosition();
     bool checkClearCondition();
     void nextLevel();
+    void gameOver(); // 게임 오버 함수 선언
 };
 
 #endif

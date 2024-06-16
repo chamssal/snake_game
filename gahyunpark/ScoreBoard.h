@@ -10,7 +10,7 @@ class ScoreBoard {
 public:
     ScoreBoard(int width);
 
-    void update(int growthItemCount, int snakeLength, int poisonItemCount, int portalCount);
+    void update(int growthItemCount, int snakeLength, int poisonItemCount, int gateCount);
     void reset();
     void draw() const;
     void startPlayTime();
@@ -20,7 +20,7 @@ private:
     int growthItemCount;
     int snakeLength;
     int poisonItemCount;
-    int portalCount;
+    int gateCount;
     bool playTimeStarted;
     chrono::time_point<chrono::steady_clock> startTime;
 };

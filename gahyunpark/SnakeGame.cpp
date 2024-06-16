@@ -1,4 +1,3 @@
-using namespace std;
 #include "SnakeGame.h"
 #include "MapInit.h"
 #include <unistd.h>
@@ -6,6 +5,8 @@ using namespace std;
 #include <ctime>
 #include <chrono>
 #include <ncurses.h>
+
+using namespace std;
 
 SnakeGame::SnakeGame(int width, int height, int level)
     : width(width), height(height), level(level), direction(-1), lastGateChangeTime(0), maxlength(13), growthItemCount(0), poisonItemCount(0), gateCount(0), scoreBoard(width), isPoison(false), poisonLastAppeared(0), reverseItemExists(false), reverseItemLastAppeared(0), reverseActive(false), reverseActivatedAt(0), growthLastAppeared(0) {
@@ -34,6 +35,18 @@ SnakeGame::SnakeGame(int width, int height, int level)
     poisonLastAppeared = time(NULL);
     reverseItemLastAppeared = time(NULL);
     growthLastAppeared = time(NULL);
+
+    // 초기 게임 시작 메시지 출력
+    clear();
+    mvprintw(height / 2, (width - 7) / 2, "Stage 1");
+    refresh();
+    sleep(2);
+    clear();
+    drawMap();
+    drawSnake();
+    drawGrowth();
+    scoreBoard.draw();
+    refresh();
 }
 
 SnakeGame::~SnakeGame() {
@@ -61,19 +74,26 @@ void SnakeGame::run() {
             moveSnake();
 
         if (checkCollision()) {
-            mvprintw(height / 2, (width - 10) / 2, "Game Over");
-            refresh();
-            sleep(3);
-            resetGame();
+            gameOver();
             continue;
         }
 
         if (checkClearCondition()) {
-            mvprintw(height / 2, (width - 10) / 2, "Stage Clear!");
-            refresh();
-            sleep(2);
-            nextLevel();
-            continue;
+            if (level == 4) {
+                clear();
+                mvprintw(height / 2, (width - 15) / 2, "Congratulation!");
+                refresh();
+                sleep(2);
+                endwin();
+                exit(0);
+            } else {
+                clear();
+                mvprintw(height / 2, (width - 11) / 2, "Stage Clear!");
+                refresh();
+                sleep(2);
+                nextLevel();
+                continue;
+            }
         }
 
         // 게이트 20초
@@ -115,7 +135,7 @@ void SnakeGame::run() {
             reverseActive = false;
         }
 
-        usleep(100000);//0.1 간격으로 뱀 움직임
+        usleep(100000); // 0.1초 간격으로 뱀 움직임
     }
 }
 
@@ -142,7 +162,7 @@ void SnakeGame::drawMap() {
             } 
             else if (map[y][x] == 3) {
                 attron(COLOR_PAIR(2));
-                mvprintw(y, displayX, "G"); // 문 표시
+                mvprintw(y, displayX, "T"); // 문 표시
                 attroff(COLOR_PAIR(2));
             }
         }
@@ -249,10 +269,7 @@ void SnakeGame::moveSnake() {
 
     // 텔레포트 후에 다시 위치 검증
     if (map[newHead.first][newHead.second] == 2 || map[newHead.first][newHead.second] == 1) {
-        mvprintw(height / 2, (width - 10) / 2, "Game Over");
-        refresh();
-        sleep(3);
-        resetGame();
+        gameOver();
         return;
     }
 
@@ -276,10 +293,7 @@ void SnakeGame::moveSnake() {
             drawSnake(); 
             refresh();
             scoreBoard.update(growthItemCount, snake.size(), poisonItemCount, gateCount);
-            mvprintw(height / 2, (width - 10) / 2, "Game Over");
-            refresh();
-            sleep(3);
-            resetGame();
+            gameOver();
             return;
         }
         isPoison = false; // 감소아이템 제거
@@ -418,7 +432,7 @@ bool SnakeGame::isSnakePosition(int y, int x) {
 }
 
 void SnakeGame::changeGatePosition() {
-    MapInit::randomGates(width, height, map, gate1, gate2);
+    MapInit::placeRandomGates(width, height, map, gate1, gate2);
 }
 
 bool SnakeGame::checkClearCondition() {
@@ -446,4 +460,24 @@ void SnakeGame::nextLevel() {
     drawGrowth();
     scoreBoard.draw();
     refresh();
+}
+
+void SnakeGame::gameOver() {
+    clear();
+    mvprintw(height / 2, (width - 9) / 2, "Game Over");
+    mvprintw(height / 2 + 1, (width - 9) / 2, "Press Y to continue, Press N to quit");
+    refresh();
+
+    timeout(-1); // getch()를 무한 대기 모드로 변경
+    while (true) {
+        char restartChoice = getch();
+        if (restartChoice == 'y' || restartChoice == 'Y') {
+            timeout(100); // getch()를 다시 비동기 모드로 변경
+            resetGame();
+            break;
+        } else if (restartChoice == 'n' || restartChoice == 'N') {
+            endwin();
+            exit(0);
+        }
+    }
 }
