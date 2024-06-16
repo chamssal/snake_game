@@ -4,6 +4,8 @@
 #include <ncurses.h>
 #include <chrono>
 
+using namespace std;
+
 class ScoreBoard {
 public:
     ScoreBoard(int width);
@@ -20,7 +22,7 @@ private:
     int poisonItemCount;
     int portalCount;
     bool playTimeStarted;
-    std::chrono::time_point<std::chrono::steady_clock> startTime;
+    chrono::time_point<chrono::steady_clock> startTime;
 };
 
 #endif

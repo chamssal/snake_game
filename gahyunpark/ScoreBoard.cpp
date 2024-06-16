@@ -1,4 +1,5 @@
 #include "ScoreBoard.h"
+using namespace std;
 
 ScoreBoard::ScoreBoard(int width) 
     : width(width), growthItemCount(0), snakeLength(0), poisonItemCount(0), portalCount(0), playTimeStarted(false) {}
@@ -26,16 +27,16 @@ void ScoreBoard::draw() const {
     mvprintw(5, width * 2 + 2, "Portals: %d/5", (portalCount>5)?5:portalCount);
     
     if (playTimeStarted) {
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - startTime).count();
+        auto elapsed = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - startTime).count();
         mvprintw(6, width * 2 + 2, "Playtime: %lds", elapsed);
-    } else {
+    } 
+    else 
         mvprintw(6, width * 2 + 2, "Playtime: 0s");
-    }
 }
 
 void ScoreBoard::startPlayTime() {
     if (!playTimeStarted) {
-        startTime = std::chrono::steady_clock::now();
+        startTime = chrono::steady_clock::now();
         playTimeStarted = true;
     }
 }
